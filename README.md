@@ -82,6 +82,25 @@ npm run dev
 
 Die App läuft nun auf: `http://localhost:5173`
 
+## 🚀 Production Deployment
+
+Die App kann mit automatischem GitHub Actions Deployment auf einem Server deployed werden.
+
+### Schnellstart (10 Minuten)
+
+Siehe: **[deploy/QUICKSTART.md](deploy/QUICKSTART.md)**
+
+### Vollständige Dokumentation
+
+Siehe: **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)**
+
+### Features
+- ✅ Automatisches Deployment bei jedem Push
+- ✅ Nginx als Reverse Proxy
+- ✅ Systemd Service für Backend
+- ✅ SSL/HTTPS Support (optional)
+- ✅ Domain-Support (optional)
+
 ## Verwendung
 
 ### Dashboard
