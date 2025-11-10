@@ -10,14 +10,15 @@ const HabitList = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    color: '#3B82F6'
+    color: '#3B82F6',
+    frequency: 1
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await addHabit(formData);
-      setFormData({ name: '', description: '', color: '#3B82F6' });
+      setFormData({ name: '', description: '', color: '#3B82F6', frequency: 1 });
       setShowForm(false);
     } catch (error) {
       console.error('Failed to create habit', error);
@@ -105,6 +106,21 @@ const HabitList = () => {
                   placeholder="Details zum Habit..."
                   rows="3"
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Frequenz (Tage Cooldown)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={formData.frequency}
+                  onChange={(e) => setFormData({ ...formData, frequency: parseInt(e.target.value) || 1 })}
+                  placeholder="1 = täglich, 2 = alle 2 Tage, etc."
+                />
+                <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+                  {formData.frequency === 1 ? 'Täglich verfügbar' : `Verfügbar alle ${formData.frequency} Tage`}
+                </small>
               </div>
 
               <div className="form-group">

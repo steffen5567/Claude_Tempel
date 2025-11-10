@@ -19,6 +19,7 @@ class Habit(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500))
     color = db.Column(db.String(7), default='#3B82F6')  # Default blue
+    frequency = db.Column(db.Integer, default=1)  # Cooldown in days (1 = daily, 2 = every 2 days, etc.)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completions = db.relationship('HabitCompletion', backref='habit', lazy=True, cascade='all, delete-orphan')
     goals = db.relationship('Goal', backref='habit', lazy=True, cascade='all, delete-orphan')
@@ -29,6 +30,7 @@ class Habit(db.Model):
             'name': self.name,
             'description': self.description,
             'color': self.color,
+            'frequency': self.frequency,
             'created_at': self.created_at.isoformat()
         }
 
@@ -75,8 +77,50 @@ class Goal(db.Model):
         }
 
 # Helper Functions
-def calculate_streak(habit_id):
-    """Calculate current and longest streak for a habit"""
+def get_current_day():
+    """Get current day with 3 AM cutoff - day starts at 3 AM"""
+    now = datetime.utcnow()
+    if now.hour < 3:
+        # Before 3 AM, we're still in the previous day
+        return (now - timedelta(days=1)).date()
+    return now.date()
+
+def get_next_3am():
+    """Get the next 3 AM timestamp"""
+    now = datetime.utcnow()
+    next_3am = now.replace(hour=3, minute=0, second=0, microsecond=0)
+    if now.hour >= 3:
+        # If it's already past 3 AM today, get tomorrow's 3 AM
+        next_3am += timedelta(days=1)
+    return next_3am
+
+def get_cooldown_info(habit_id, frequency):
+    """Calculate cooldown status for a habit"""
+    last_completion = HabitCompletion.query.filter_by(habit_id=habit_id).order_by(HabitCompletion.completed_at.desc()).first()
+
+    if not last_completion:
+        return {
+            'on_cooldown': False,
+            'cooldown_end': None,
+            'is_available': True
+        }
+
+    # Calculate when the cooldown ends (last completion + frequency days, at 3 AM)
+    last_completion_day = last_completion.completed_at.date()
+    cooldown_end_day = last_completion_day + timedelta(days=frequency)
+    cooldown_end = datetime.combine(cooldown_end_day, datetime.min.time()).replace(hour=3, minute=0, second=0)
+
+    current_day = get_current_day()
+    on_cooldown = current_day < cooldown_end_day
+
+    return {
+        'on_cooldown': on_cooldown,
+        'cooldown_end': cooldown_end.isoformat() if on_cooldown else None,
+        'is_available': not on_cooldown
+    }
+
+def calculate_streak(habit_id, frequency=1):
+    """Calculate current and longest streak for a habit with frequency support"""
     completions = HabitCompletion.query.filter_by(habit_id=habit_id).order_by(HabitCompletion.completed_at.desc()).all()
 
     if not completions:
@@ -85,25 +129,28 @@ def calculate_streak(habit_id):
     # Get unique dates (ignore time)
     completion_dates = sorted(set(c.completed_at.date() for c in completions), reverse=True)
 
-    # Calculate current streak
+    # Calculate current streak with frequency
     current_streak = 0
-    today = datetime.utcnow().date()
-    expected_date = today
+    current_day = get_current_day()
+    expected_date = current_day
 
     for date in completion_dates:
-        if date == expected_date or date == expected_date - timedelta(days=1):
+        # Allow completion on expected date or within frequency window
+        days_diff = (expected_date - date).days
+        if days_diff >= 0 and days_diff < frequency:
             current_streak += 1
-            expected_date = date - timedelta(days=1)
+            expected_date = date - timedelta(days=frequency)
         else:
             break
 
-    # Calculate longest streak
+    # Calculate longest streak with frequency
     longest_streak = 0
     temp_streak = 1
 
     for i in range(len(completion_dates) - 1):
         diff = (completion_dates[i] - completion_dates[i + 1]).days
-        if diff == 1:
+        # Allow streak to continue if within frequency window
+        if diff <= frequency:
             temp_streak += 1
             longest_streak = max(longest_streak, temp_streak)
         else:
@@ -131,7 +178,8 @@ def create_habit():
     habit = Habit(
         name=data['name'],
         description=data.get('description', ''),
-        color=data.get('color', '#3B82F6')
+        color=data.get('color', '#3B82F6'),
+        frequency=data.get('frequency', 1)
     )
     db.session.add(habit)
     db.session.commit()
@@ -146,6 +194,7 @@ def update_habit(habit_id):
     habit.name = data.get('name', habit.name)
     habit.description = data.get('description', habit.description)
     habit.color = data.get('color', habit.color)
+    habit.frequency = data.get('frequency', habit.frequency)
 
     db.session.commit()
     return jsonify(habit.to_dict())
@@ -185,8 +234,8 @@ def get_habit_stats(habit_id):
     """Get statistics for a habit including streaks"""
     habit = Habit.query.get_or_404(habit_id)
 
-    # Calculate streaks
-    streaks = calculate_streak(habit_id)
+    # Calculate streaks with frequency
+    streaks = calculate_streak(habit_id, habit.frequency)
 
     # Get total completions
     total_completions = HabitCompletion.query.filter_by(habit_id=habit_id).count()
@@ -199,12 +248,8 @@ def get_habit_stats(habit_id):
     ).count()
     completion_rate_30d = (recent_completions / 30) * 100
 
-    # Check if completed today
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    completed_today = HabitCompletion.query.filter(
-        HabitCompletion.habit_id == habit_id,
-        HabitCompletion.completed_at >= today_start
-    ).first() is not None
+    # Get cooldown info
+    cooldown = get_cooldown_info(habit_id, habit.frequency)
 
     return jsonify({
         'habit_id': habit_id,
@@ -212,7 +257,9 @@ def get_habit_stats(habit_id):
         'longest_streak': streaks['longest_streak'],
         'total_completions': total_completions,
         'completion_rate_30d': round(completion_rate_30d, 1),
-        'completed_today': completed_today
+        'on_cooldown': cooldown['on_cooldown'],
+        'cooldown_end': cooldown['cooldown_end'],
+        'is_available': cooldown['is_available']
     })
 
 @app.route('/api/goals', methods=['GET'])
@@ -245,24 +292,20 @@ def delete_goal(goal_id):
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard():
-    """Get dashboard overview data"""
+    """Get dashboard overview data with cooldown support"""
     habits = Habit.query.all()
     dashboard_data = []
 
     for habit in habits:
-        stats = calculate_streak(habit.id)
-
-        # Check if completed today
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        completed_today = HabitCompletion.query.filter(
-            HabitCompletion.habit_id == habit.id,
-            HabitCompletion.completed_at >= today_start
-        ).first() is not None
+        stats = calculate_streak(habit.id, habit.frequency)
+        cooldown = get_cooldown_info(habit.id, habit.frequency)
 
         dashboard_data.append({
             'habit': habit.to_dict(),
             'current_streak': stats['current_streak'],
-            'completed_today': completed_today
+            'on_cooldown': cooldown['on_cooldown'],
+            'cooldown_end': cooldown['cooldown_end'],
+            'is_available': cooldown['is_available']
         })
 
     return jsonify(dashboard_data)

@@ -9,6 +9,15 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedHabit, setSelectedHabit] = useState(null);
   const [note, setNote] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every minute for cooldown display
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchDashboard = async () => {
     try {
@@ -49,12 +58,33 @@ const Dashboard = () => {
     setNote('');
   };
 
+  const formatCooldownTime = (cooldownEnd) => {
+    if (!cooldownEnd) return '';
+
+    const end = new Date(cooldownEnd);
+    const now = currentTime;
+    const diff = end - now;
+
+    if (diff <= 0) return 'Bereit!';
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      const remainingHours = hours % 24;
+      return `${days}T ${remainingHours}h`;
+    }
+
+    return `${hours}h ${minutes}m`;
+  };
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
 
-  const completedToday = dashboardData.filter(item => item.completed_today);
-  const pendingToday = dashboardData.filter(item => !item.completed_today);
+  const availableHabits = dashboardData.filter(item => item.is_available);
+  const cooldownHabits = dashboardData.filter(item => item.on_cooldown);
 
   return (
     <div className="dashboard">
@@ -62,28 +92,28 @@ const Dashboard = () => {
 
       <div className="dashboard-stats">
         <div className="stat-card">
-          <div className="stat-number">{completedToday.length}</div>
-          <div className="stat-label">Erledigt</div>
+          <div className="stat-number">{availableHabits.length}</div>
+          <div className="stat-label">Verfügbar</div>
         </div>
         <div className="stat-card">
-          <div className="stat-number">{pendingToday.length}</div>
-          <div className="stat-label">Ausstehend</div>
+          <div className="stat-number">{cooldownHabits.length}</div>
+          <div className="stat-label">Cooldown</div>
         </div>
         <div className="stat-card">
           <div className="stat-number">
             {dashboardData.length > 0
-              ? Math.round((completedToday.length / dashboardData.length) * 100)
+              ? Math.round((cooldownHabits.length / dashboardData.length) * 100)
               : 0}%
           </div>
-          <div className="stat-label">Fortschritt</div>
+          <div className="stat-label">In Pause</div>
         </div>
       </div>
 
-      {pendingToday.length > 0 && (
+      {availableHabits.length > 0 && (
         <div className="habits-section">
-          <h3>Noch zu erledigen</h3>
+          <h3>Verfügbar ✓</h3>
           <div className="habits-grid">
-            {pendingToday.map(({ habit, current_streak }) => (
+            {availableHabits.map(({ habit, current_streak }) => (
               <div
                 key={habit.id}
                 className="habit-card"
@@ -97,6 +127,9 @@ const Dashboard = () => {
                       🔥 {current_streak} Tag{current_streak !== 1 ? 'e' : ''}
                     </div>
                   )}
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+                    Frequenz: alle {habit.frequency} Tag{habit.frequency !== 1 ? 'e' : ''}
+                  </div>
                 </div>
                 <button
                   className="complete-btn"
@@ -110,25 +143,45 @@ const Dashboard = () => {
         </div>
       )}
 
-      {completedToday.length > 0 && (
+      {cooldownHabits.length > 0 && (
         <div className="habits-section">
-          <h3>Heute erledigt ✓</h3>
+          <h3>Im Cooldown ⏰</h3>
           <div className="habits-grid">
-            {completedToday.map(({ habit, current_streak }) => (
+            {cooldownHabits.map(({ habit, current_streak, cooldown_end }) => (
               <div
                 key={habit.id}
-                className="habit-card completed"
-                style={{ borderLeft: `4px solid ${habit.color}` }}
+                className="habit-card cooldown"
+                style={{
+                  borderLeft: `4px solid ${habit.color}`,
+                  opacity: 0.6,
+                  background: '#f5f5f5'
+                }}
               >
                 <div className="habit-info">
-                  <h4>{habit.name}</h4>
+                  <h4 style={{ color: '#999' }}>{habit.name}</h4>
                   {current_streak > 0 && (
                     <div className="streak-badge">
                       🔥 {current_streak} Tag{current_streak !== 1 ? 'e' : ''}
                     </div>
                   )}
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: '#666',
+                    marginTop: '0.5rem',
+                    fontWeight: '500'
+                  }}>
+                    ⏰ Verfügbar in: {formatCooldownTime(cooldown_end)}
+                  </div>
                 </div>
-                <div className="completed-badge">✓</div>
+                <div className="cooldown-badge" style={{
+                  background: '#ddd',
+                  color: '#666',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem'
+                }}>
+                  Cooldown
+                </div>
               </div>
             ))}
           </div>
