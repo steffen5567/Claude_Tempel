@@ -23,7 +23,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Server läuft auf: http://localhost:5000
+Server läuft auf: http://localhost:5001
 
 ## API Endpoints
 
@@ -45,3 +45,66 @@ Server läuft auf: http://localhost:5000
 
 ### Dashboard
 - `GET /api/dashboard` - Übersicht aller Habits mit Status
+
+## Troubleshooting
+
+### Datenbank zurücksetzen
+
+Wenn nach Schema-Änderungen 500-Fehler auftreten oder die Datenbank beschädigt ist:
+
+**Auf dem Server:**
+```bash
+# 1. Backend stoppen
+sudo systemctl stop habit-tracker-backend
+
+# 2. Datenbank löschen (im instance Ordner!)
+cd /var/www/habit-tracker-app/backend
+rm instance/habits.db
+
+# 3. Backend neu starten (erstellt automatisch neue leere Datenbank)
+sudo systemctl start habit-tracker-backend
+
+# 4. Status prüfen
+sudo systemctl status habit-tracker-backend
+```
+
+**Lokal (Entwicklung):**
+```bash
+# Datenbank löschen
+rm instance/habits.db
+
+# Server neu starten (erstellt neue Datenbank)
+python app.py
+```
+
+### Port-Konflikt beheben
+
+Wenn der Port bereits belegt ist:
+
+```bash
+# 1. Prozess finden, der den Port blockiert
+sudo netstat -tulpn | grep :5001
+
+# 2. Prozess beenden (PID aus vorherigem Befehl)
+sudo kill <PID>
+
+# 3. Service neu starten
+sudo systemctl restart habit-tracker-backend
+```
+
+### Backend-Logs anzeigen
+
+```bash
+# Letzte 50 Zeilen der Logs anzeigen
+sudo journalctl -u habit-tracker-backend -n 50 --no-pager
+
+# Logs live verfolgen
+sudo journalctl -u habit-tracker-backend -f
+```
+
+## Deployment-Konfiguration
+
+- **Lokale Entwicklung**: Port 5001
+- **Produktions-Server**: Port 5001 (intern)
+- **Nginx Proxy**: Port 8080 (öffentlich) → leitet `/api/*` an Backend weiter
+- **Datenbank-Speicherort**: `instance/habits.db`

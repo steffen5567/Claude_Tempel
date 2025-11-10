@@ -61,7 +61,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Der Backend-Server läuft nun auf: `http://localhost:5000`
+Der Backend-Server läuft nun auf: `http://localhost:5001`
 
 ### Frontend Setup
 
@@ -143,6 +143,80 @@ Siehe: **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)**
 
 ### Dashboard
 - `GET /api/dashboard` - Dashboard-Übersicht
+
+## Troubleshooting
+
+### Häufige Probleme
+
+#### 500 Internal Server Error / Datenbank-Fehler
+
+**Problem**: Nach Schema-Änderungen oder Updates gibt das Backend 500-Fehler zurück.
+
+**Lösung**: Datenbank zurücksetzen (siehe [backend/README.md](backend/README.md#datenbank-zurücksetzen))
+
+**Auf dem Server:**
+```bash
+sudo systemctl stop habit-tracker-backend
+cd /var/www/habit-tracker-app/backend
+rm instance/habits.db
+sudo systemctl start habit-tracker-backend
+```
+
+#### Port bereits belegt (Address already in use)
+
+**Problem**: Backend kann nicht starten, weil Port 5001 bereits belegt ist.
+
+**Lösung**:
+```bash
+# Prozess finden
+sudo netstat -tulpn | grep :5001
+
+# Prozess beenden
+sudo kill <PID>
+
+# Service neu starten
+sudo systemctl restart habit-tracker-backend
+```
+
+#### 502 Bad Gateway
+
+**Problem**: Nginx kann Backend nicht erreichen.
+
+**Mögliche Ursachen:**
+1. Backend läuft nicht → `sudo systemctl status habit-tracker-backend`
+2. Falscher Port in nginx-Config → Prüfe `/etc/nginx/sites-available/habit-tracker`
+3. Firewall blockiert → `sudo ufw status`
+
+#### Frontend verbindet nicht mit Backend
+
+**Problem**: Frontend zeigt Verbindungsfehler.
+
+**Lösung**:
+- Prüfe API-URL in `frontend/src/services/api.js`
+- Für lokale Entwicklung: `http://localhost:5001/api`
+- Für Produktion: Relative URL `/api` (nginx leitet weiter)
+
+### Backend-Logs anzeigen
+
+```bash
+# Letzte 50 Zeilen
+sudo journalctl -u habit-tracker-backend -n 50 --no-pager
+
+# Live-Logs verfolgen
+sudo journalctl -u habit-tracker-backend -f
+```
+
+### Deployment-Architektur
+
+**Produktion:**
+- **Nginx** (Port 8080): Liefert Frontend + Proxy für `/api/*`
+- **Backend** (Port 5001): Intern, nur über nginx erreichbar
+- **Datenbank**: SQLite in `backend/instance/habits.db`
+
+**Entwicklung:**
+- **Frontend**: Port 5173 (Vite Dev Server)
+- **Backend**: Port 5001 (Flask Dev Server)
+- **Datenbank**: SQLite in `backend/instance/habits.db`
 
 ## Zukünftige Erweiterungen
 
