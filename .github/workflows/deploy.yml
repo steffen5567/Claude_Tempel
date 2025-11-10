@@ -30,13 +30,13 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          ssh $SERVER_USER@$SERVER_HOST DEPLOY_PATH=$DEPLOY_PATH bash -s <<'ENDSSH'
             set -e
 
             echo "🚀 Starting deployment..."
 
             # Navigate to deployment directory
-            cd ${{ secrets.DEPLOY_PATH }}
+            cd $DEPLOY_PATH
 
             # Pull latest changes
             echo "📦 Pulling latest code..."
