@@ -20,15 +20,29 @@
 
 .habit-header {
   background: white;
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .habit-header {
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
 }
 
 .habit-header h2 {
   margin: 0 0 0.5rem 0;
   color: #333;
+  font-size: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .habit-header h2 {
+    font-size: 2rem;
+  }
 }
 
 .habit-header p {
@@ -38,41 +52,85 @@
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 3rem;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 480px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
 }
 
 .stat-box {
   background: white;
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
+@media (min-width: 768px) {
+  .stat-box {
+    padding: 2rem;
+  }
+}
+
 .stat-icon {
-  font-size: 2.5rem;
+  font-size: 2rem;
   margin-bottom: 0.5rem;
 }
 
+@media (min-width: 768px) {
+  .stat-icon {
+    font-size: 2.5rem;
+  }
+}
+
 .stat-value {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: bold;
   color: #3B82F6;
   margin-bottom: 0.5rem;
 }
 
+@media (min-width: 768px) {
+  .stat-value {
+    font-size: 2.5rem;
+  }
+}
+
 .stat-label {
   color: #666;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .stat-label {
+    font-size: 0.9rem;
+  }
 }
 
 .completions-section {
   background: white;
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@media (min-width: 768px) {
+  .completions-section {
+    padding: 2rem;
+  }
 }
 
 .completions-section h3 {
