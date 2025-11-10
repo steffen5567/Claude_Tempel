@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Use environment variable if available, otherwise default to server IP and port 8080
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://178.254.40.108:8080/api';
+// Use relative URL to work with the same host/port where the frontend is served
+// This works because nginx serves both frontend and proxies /api to backend
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
