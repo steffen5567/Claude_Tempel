@@ -48,6 +48,10 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt --quiet
 
+            # Run database migrations
+            echo "🗄️  Running database migrations..."
+            flask db upgrade || echo "No migrations to run"
+
             # Restart backend service
             echo "♻️  Restarting backend service..."
             sudo systemctl restart habit-tracker-backend
