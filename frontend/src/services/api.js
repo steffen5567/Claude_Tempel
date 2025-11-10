@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Use environment variable if available, otherwise default to port 8080 (deploy server)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+// Use environment variable if available, otherwise default to server IP and port 8080
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://178.254.40.108:8080/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
