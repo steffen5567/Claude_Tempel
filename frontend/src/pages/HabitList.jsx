@@ -11,14 +11,15 @@ const HabitList = () => {
     name: '',
     description: '',
     color: '#3B82F6',
-    frequency: 1
+    frequency: 1,
+    initial_streak: 0
   });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await addHabit(formData);
-      setFormData({ name: '', description: '', color: '#3B82F6', frequency: 1 });
+      setFormData({ name: '', description: '', color: '#3B82F6', frequency: 1, initial_streak: 0 });
       setShowForm(false);
     } catch (error) {
       console.error('Failed to create habit', error);
@@ -120,6 +121,21 @@ const HabitList = () => {
                 />
                 <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
                   {formData.frequency === 1 ? 'Täglich verfügbar' : `Verfügbar alle ${formData.frequency} Tage`}
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label>Start-Streak (optional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  value={formData.initial_streak}
+                  onChange={(e) => setFormData({ ...formData, initial_streak: parseInt(e.target.value) || 0 })}
+                  placeholder="Falls bereits vorher getrackt"
+                />
+                <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+                  {formData.initial_streak === 0 ? 'Keine Start-Streak' : `Startet mit ${formData.initial_streak} Tag${formData.initial_streak !== 1 ? 'en' : ''} Streak`}
                 </small>
               </div>
 

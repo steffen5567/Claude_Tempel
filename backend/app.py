@@ -22,6 +22,7 @@ class Habit(db.Model):
     description = db.Column(db.String(500))
     color = db.Column(db.String(7), default='#3B82F6')  # Default blue
     frequency = db.Column(db.Integer, default=1)  # Cooldown in days (1 = daily, 2 = every 2 days, etc.)
+    initial_streak = db.Column(db.Integer, default=0)  # Starting streak for habits tracked before app
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completions = db.relationship('HabitCompletion', backref='habit', lazy=True, cascade='all, delete-orphan')
     goals = db.relationship('Goal', backref='habit', lazy=True, cascade='all, delete-orphan')
@@ -33,6 +34,7 @@ class Habit(db.Model):
             'description': self.description,
             'color': self.color,
             'frequency': self.frequency,
+            'initial_streak': self.initial_streak,
             'created_at': self.created_at.isoformat()
         }
 
@@ -121,12 +123,13 @@ def get_cooldown_info(habit_id, frequency):
         'is_available': not on_cooldown
     }
 
-def calculate_streak(habit_id, frequency=1):
-    """Calculate current and longest streak for a habit with frequency support"""
+def calculate_streak(habit_id, frequency=1, initial_streak=0):
+    """Calculate current and longest streak for a habit with frequency support and initial streak"""
     completions = HabitCompletion.query.filter_by(habit_id=habit_id).order_by(HabitCompletion.completed_at.desc()).all()
 
     if not completions:
-        return {'current_streak': 0, 'longest_streak': 0}
+        # If no completions yet, return initial streak
+        return {'current_streak': initial_streak, 'longest_streak': initial_streak}
 
     # Get unique dates (ignore time)
     completion_dates = sorted(set(c.completed_at.date() for c in completions), reverse=True)
@@ -145,6 +148,9 @@ def calculate_streak(habit_id, frequency=1):
         else:
             break
 
+    # Add initial streak to current streak
+    current_streak += initial_streak
+
     # Calculate longest streak with frequency
     longest_streak = 0
     temp_streak = 1
@@ -159,6 +165,12 @@ def calculate_streak(habit_id, frequency=1):
             temp_streak = 1
 
     longest_streak = max(longest_streak, temp_streak)
+
+    # Add initial streak to longest streak
+    longest_streak += initial_streak
+
+    # Ensure current streak is at least considered for longest
+    longest_streak = max(longest_streak, current_streak)
 
     return {
         'current_streak': current_streak,
@@ -181,7 +193,8 @@ def create_habit():
         name=data['name'],
         description=data.get('description', ''),
         color=data.get('color', '#3B82F6'),
-        frequency=data.get('frequency', 1)
+        frequency=data.get('frequency', 1),
+        initial_streak=data.get('initial_streak', 0)
     )
     db.session.add(habit)
     db.session.commit()
@@ -236,8 +249,8 @@ def get_habit_stats(habit_id):
     """Get statistics for a habit including streaks"""
     habit = Habit.query.get_or_404(habit_id)
 
-    # Calculate streaks with frequency
-    streaks = calculate_streak(habit_id, habit.frequency)
+    # Calculate streaks with frequency and initial streak
+    streaks = calculate_streak(habit_id, habit.frequency, habit.initial_streak)
 
     # Get total completions
     total_completions = HabitCompletion.query.filter_by(habit_id=habit_id).count()
@@ -299,7 +312,7 @@ def get_dashboard():
     dashboard_data = []
 
     for habit in habits:
-        stats = calculate_streak(habit.id, habit.frequency)
+        stats = calculate_streak(habit.id, habit.frequency, habit.initial_streak)
         cooldown = get_cooldown_info(habit.id, habit.frequency)
 
         dashboard_data.append({
