@@ -124,52 +124,53 @@ def get_cooldown_info(habit_id, frequency):
     }
 
 def calculate_streak(habit_id, frequency=1, initial_streak=0):
-    """Calculate current and longest streak for a habit with frequency support and initial streak"""
+    """Calculate current and longest streak for a habit with strict frequency checking"""
     completions = HabitCompletion.query.filter_by(habit_id=habit_id).order_by(HabitCompletion.completed_at.desc()).all()
 
     if not completions:
-        # If no completions yet, return initial streak
-        return {'current_streak': initial_streak, 'longest_streak': initial_streak}
+        return {'current_streak': 0, 'longest_streak': 0}
 
     # Get unique dates (ignore time)
     completion_dates = sorted(set(c.completed_at.date() for c in completions), reverse=True)
 
-    # Calculate current streak with frequency
-    current_streak = 0
+    # Calculate current streak
     current_day = get_current_day()
-    expected_date = current_day
+    last_completion_date = completion_dates[0]
+    days_since_last = (current_day - last_completion_date).days
 
-    for date in completion_dates:
-        # Allow completion on expected date or within frequency window
-        days_diff = (expected_date - date).days
-        if days_diff >= 0 and days_diff < frequency:
-            current_streak += 1
-            expected_date = date - timedelta(days=frequency)
-        else:
-            break
+    # Streak is broken if more than frequency days have passed since last completion
+    if days_since_last > frequency:
+        current_streak = 0
+    else:
+        # Start counting from the most recent completion
+        current_streak = 1
 
-    # Add initial streak to current streak
-    current_streak += initial_streak
+        # Count consecutive completions that follow the frequency pattern
+        for i in range(len(completion_dates) - 1):
+            diff = (completion_dates[i] - completion_dates[i + 1]).days
 
-    # Calculate longest streak with frequency
-    longest_streak = 0
+            # Strict check: completion should be exactly frequency days apart
+            # Allow small tolerance: frequency or frequency+1 days
+            if frequency <= diff <= frequency + 1:
+                current_streak += 1
+            else:
+                break
+
+    # Calculate longest streak with same strict frequency checking
+    longest_streak = 1
     temp_streak = 1
 
     for i in range(len(completion_dates) - 1):
         diff = (completion_dates[i] - completion_dates[i + 1]).days
-        # Allow streak to continue if within frequency window
-        if diff <= frequency:
+
+        # Same strict frequency check
+        if frequency <= diff <= frequency + 1:
             temp_streak += 1
             longest_streak = max(longest_streak, temp_streak)
         else:
             temp_streak = 1
 
-    longest_streak = max(longest_streak, temp_streak)
-
-    # Add initial streak to longest streak
-    longest_streak += initial_streak
-
-    # Ensure current streak is at least considered for longest
+    # Current streak might be the longest
     longest_streak = max(longest_streak, current_streak)
 
     return {
@@ -329,6 +330,25 @@ def get_dashboard():
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy'})
+
+@app.route('/api/admin/reset-streaks', methods=['POST'])
+def reset_all_streaks():
+    """Reset all initial_streak values to 0 (Admin endpoint)"""
+    habits = Habit.query.all()
+
+    reset_count = 0
+    for habit in habits:
+        if habit.initial_streak != 0:
+            habit.initial_streak = 0
+            reset_count += 1
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'All streaks have been reset',
+        'habits_reset': reset_count,
+        'total_habits': len(habits)
+    })
 
 # Initialize database
 with app.app_context():
