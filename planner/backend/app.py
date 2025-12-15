@@ -89,6 +89,13 @@ def get_current_day():
         return (now - timedelta(days=1)).date()
     return now.date()
 
+def get_day_with_cutoff(dt):
+    """Convert a datetime to a date with 3 AM cutoff"""
+    if dt.hour < 3:
+        # Before 3 AM, it counts as the previous day
+        return (dt - timedelta(days=1)).date()
+    return dt.date()
+
 def get_next_3am():
     """Get the next 3 AM timestamp"""
     now = datetime.utcnow()
@@ -130,8 +137,8 @@ def calculate_streak(habit_id, frequency=1, initial_streak=0):
     if not completions:
         return {'current_streak': 0, 'longest_streak': 0}
 
-    # Get unique dates (ignore time)
-    completion_dates = sorted(set(c.completed_at.date() for c in completions), reverse=True)
+    # Get unique dates with 3 AM cutoff (ignore time)
+    completion_dates = sorted(set(get_day_with_cutoff(c.completed_at) for c in completions), reverse=True)
 
     # Calculate current streak
     current_day = get_current_day()
