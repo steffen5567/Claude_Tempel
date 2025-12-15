@@ -1,0 +1,82 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh $SERVER_USER@$SERVER_HOST DEPLOY_PATH=$DEPLOY_PATH bash -s <<'ENDSSH'
+            set -e
+
+            echo "🚀 Starting deployment..."
+
+            # Navigate to deployment directory
+            cd $DEPLOY_PATH
+
+            # Pull latest changes
+            echo "📦 Pulling latest code..."
+            git pull origin master
+
+            # Backend deployment
+            echo "🐍 Deploying backend..."
+            cd backend
+            source venv/bin/activate
+            pip install -r requirements.txt --quiet
+
+            # Run database migrations
+            echo "🗄️  Running database migrations..."
+            flask db upgrade || echo "No migrations to run"
+
+            # Restart backend service
+            echo "♻️  Restarting backend service..."
+            sudo systemctl restart habit-tracker-backend
+
+            # Frontend deployment
+            echo "⚛️  Building frontend..."
+            cd ../frontend
+            npm install --silent
+            npm run build
+
+            # Copy built files to nginx directory
+            sudo rm -rf /var/www/habit-tracker/*
+            sudo cp -r dist/* /var/www/habit-tracker/
+
+            # Restart nginx
+            echo "🌐 Restarting nginx..."
+            sudo systemctl restart nginx
+
+            echo "✅ Deployment completed successfully!"
+          ENDSSH
+
+      - name: Deployment status
+        if: success()
+        run: echo "✅ Application deployed successfully!"
+
+      - name: Deployment failed
+        if: failure()
+        run: echo "❌ Deployment failed. Check logs for details."
