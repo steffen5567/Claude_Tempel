@@ -82,28 +82,28 @@ class Goal(db.Model):
 
 # Helper Functions
 def get_current_day():
-    """Get current day with 3 AM cutoff - day starts at 3 AM"""
+    """Get current day with 4 AM cutoff - day starts at 4 AM"""
     now = datetime.utcnow()
-    if now.hour < 3:
-        # Before 3 AM, we're still in the previous day
+    if now.hour < 4:
+        # Before 4 AM, we're still in the previous day
         return (now - timedelta(days=1)).date()
     return now.date()
 
 def get_day_with_cutoff(dt):
-    """Convert a datetime to a date with 3 AM cutoff"""
-    if dt.hour < 3:
-        # Before 3 AM, it counts as the previous day
+    """Convert a datetime to a date with 4 AM cutoff"""
+    if dt.hour < 4:
+        # Before 4 AM, it counts as the previous day
         return (dt - timedelta(days=1)).date()
     return dt.date()
 
-def get_next_3am():
-    """Get the next 3 AM timestamp"""
+def get_next_4am():
+    """Get the next 4 AM timestamp"""
     now = datetime.utcnow()
-    next_3am = now.replace(hour=3, minute=0, second=0, microsecond=0)
-    if now.hour >= 3:
-        # If it's already past 3 AM today, get tomorrow's 3 AM
-        next_3am += timedelta(days=1)
-    return next_3am
+    next_4am = now.replace(hour=4, minute=0, second=0, microsecond=0)
+    if now.hour >= 4:
+        # If it's already past 4 AM today, get tomorrow's 4 AM
+        next_4am += timedelta(days=1)
+    return next_4am
 
 def get_cooldown_info(habit_id, frequency):
     """Calculate cooldown status for a habit"""
@@ -116,10 +116,10 @@ def get_cooldown_info(habit_id, frequency):
             'is_available': True
         }
 
-    # Calculate when the cooldown ends (last completion + frequency days, at 3 AM)
+    # Calculate when the cooldown ends (last completion + frequency days, at 4 AM)
     last_completion_day = last_completion.completed_at.date()
     cooldown_end_day = last_completion_day + timedelta(days=frequency)
-    cooldown_end = datetime.combine(cooldown_end_day, datetime.min.time()).replace(hour=3, minute=0, second=0)
+    cooldown_end = datetime.combine(cooldown_end_day, datetime.min.time()).replace(hour=4, minute=0, second=0)
 
     current_day = get_current_day()
     on_cooldown = current_day < cooldown_end_day
@@ -137,7 +137,7 @@ def calculate_streak(habit_id, frequency=1, initial_streak=0):
     if not completions:
         return {'current_streak': 0, 'longest_streak': 0}
 
-    # Get unique dates with 3 AM cutoff (ignore time)
+    # Get unique dates with 4 AM cutoff (ignore time)
     completion_dates = sorted(set(get_day_with_cutoff(c.completed_at) for c in completions), reverse=True)
 
     # Calculate current streak
